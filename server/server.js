@@ -13,7 +13,7 @@ const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(cors({
-  origin: 'http://localhost:5173', // Vite default port
+  origin: 'https://git-viz-eight.vercel.app', // Vite default port
   credentials: true
 }));
 app.use(express.json());
@@ -34,7 +34,7 @@ app.use(passport.session());
 passport.use(new GitHubStrategy({
     clientID: process.env.GITHUB_CLIENT_ID,
     clientSecret: process.env.GITHUB_CLIENT_SECRET,
-    callbackURL: "http://localhost:5000/auth/github/callback"
+    callbackURL: "https://gitviz.onrender.com/auth/github/callback"
   },
   function(accessToken, refreshToken, profile, done) {
     // Store token in user session
@@ -61,9 +61,9 @@ app.get('/auth/github/callback',
   function(req, res) {
     // Ensure user is properly authenticated before redirect
     if (req.user) {
-      res.redirect('http://localhost:5173/home');
+      res.redirect('https://git-viz-eight.vercel.app/home');
     } else {
-      res.redirect('http://localhost:5173/login');
+      res.redirect('https://git-viz-eight.vercel.app/login');
     }
   }
 );

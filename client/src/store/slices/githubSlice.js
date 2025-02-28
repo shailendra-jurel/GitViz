@@ -5,7 +5,7 @@ export const getRepositories = createAsyncThunk(
   'github/getRepositories',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await fetch('http://localhost:5000/api/repos', {
+      const response = await fetch('https://gitviz.onrender.com/api/repos', {
         credentials: 'include'
       });
       if (!response.ok) throw new Error('Failed to fetch repositories');
@@ -20,7 +20,7 @@ export const getBranches = createAsyncThunk(
   'github/getBranches',
   async ({ owner, repo }, { rejectWithValue }) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/repos/${owner}/${repo}/branches`, {
+      const response = await fetch(`https://gitviz.onrender.com/api/repos/${owner}/${repo}/branches`, {
         credentials: 'include'
       });
       if (!response.ok) throw new Error('Failed to fetch branches');
@@ -36,7 +36,7 @@ export const getPullRequests = createAsyncThunk(
   'github/getPullRequests',
   async ({ owner, repo }, { rejectWithValue }) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/repos/${owner}/${repo}/pulls`, {
+      const response = await fetch(`https://gitviz.onrender.com/api/repos/${owner}/${repo}/pulls`, {
         credentials: 'include'
       });
       if (!response.ok) throw new Error('Failed to fetch pull requests');

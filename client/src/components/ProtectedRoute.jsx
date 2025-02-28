@@ -9,7 +9,7 @@ const ProtectedRoute = ({ children }) => {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/user', {
+        const response = await fetch('https://gitviz.onrender.com/api/user', {
           credentials: 'include'
         });
         if (response.ok) {

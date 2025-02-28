@@ -3,7 +3,7 @@ import { GithubIcon } from 'lucide-react';
 
 const Login = () => {
   const handleLogin = () => {
-    window.location.href = 'http://localhost:5000/auth/github';
+    window.location.href = 'https://gitviz.onrender.com/auth/github';
   };
 
   return (
