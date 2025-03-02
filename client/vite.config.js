@@ -8,9 +8,9 @@ export default defineConfig(({ command, mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   
   console.log('Vite config - Mode:', mode);
-  console.log('Vite config - Backend URL:', env.VITE_BACKEND_URL || 'https://gitviz.onrender.com');
+  console.log('Vite config - Backend URL:', env.REACT_APP_API_URL || 'https://gitviz.onrender.com');
   
-  const backendUrl = env.VITE_BACKEND_URL || 'https://gitviz.onrender.com';
+  const backendUrl = env.REACT_APP_API_URL || 'https://gitviz.onrender.com';
   
   return {
     plugins: [tailwindcss(), react()],
