@@ -1,24 +1,56 @@
-// server/index.js
-import cors from 'cors';
-import dotenv from 'dotenv';
-import express from 'express';
-import session from 'express-session';
-import passport from 'passport';
-import { Strategy as GitHubStrategy } from 'passport-github2';
+// GitViz/server/server.js
+const express = require('express');
+const cors = require('cors');
+const dotenv = require('dotenv');
+const passport = require('passport');
+const GitHubStrategy = require('passport-github2').Strategy;
+const session = require('express-session');
+const jwt = require('jsonwebtoken');
 
+// Load environment variables
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Set up allowed origins - expanded to be more flexible
+const allowedOrigins = [
+  'https://git-viz-eight.vercel.app',
+  'https://git-viz-eight.vercel.app/',
+  process.env.CLIENT_URL,
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'https://gitviz.onrender.com'
+];
+
 // Middleware
 app.use(cors({
-  origin: 'https://git-viz-eight.vercel.app', // Vite default port
-  credentials: true
+  origin: function(origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    // Check if the origin is allowed or if it's a subdomain of an allowed domain
+    const isAllowed = allowedOrigins.some(allowedOrigin => {
+      return origin === allowedOrigin || origin.endsWith(`.${allowedOrigin.replace(/^https?:\/\//, '')}`);
+    });
+    
+    if (!isAllowed) {
+      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+      console.warn(`CORS blocked for origin: ${origin}`);
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Session config
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'your-secret-key',
+  secret: process.env.SESSION_SECRET || 'git-viz-session-secret',
   resave: false,
   saveUninitialized: false,
   cookie: {
@@ -27,22 +59,43 @@ app.use(session({
     maxAge: 24 * 60 * 60 * 1000 // 24 hours
   }
 }));
+
+// Initialize passport
 app.use(passport.initialize());
 app.use(passport.session());
 
-// Passport configuration
+// Enhanced logging for GitHub callback URL
+const callbackURL = process.env.GITHUB_CALLBACK_URL || 'https://gitviz.onrender.com/api/auth/github/callback';
+console.log('Using GitHub callback URL:', callbackURL);
+
+// Passport GitHub strategy
 passport.use(new GitHubStrategy({
     clientID: process.env.GITHUB_CLIENT_ID,
     clientSecret: process.env.GITHUB_CLIENT_SECRET,
-    callbackURL: "https://gitviz.onrender.com/auth/github/callback"
+    callbackURL: callbackURL,
+    scope: ['user', 'repo']
   },
-  function(accessToken, refreshToken, profile, done) {
-    // Store token in user session
-    profile.accessToken = accessToken;
-    return done(null, profile);
+  async (accessToken, refreshToken, profile, done) => {
+    try {
+      console.log('GitHub authentication successful for user:', profile.username);
+      // Store GitHub access token with the user profile using consistent naming
+      const user = {
+        id: profile.id,
+        username: profile.username,
+        displayName: profile.displayName || profile.username,
+        avatarUrl: profile._json.avatar_url,
+        githubToken: accessToken // This will be mapped to github_token in the JWT
+      };
+      
+      return done(null, user);
+    } catch (error) {
+      console.error('GitHub authentication error:', error);
+      return done(error, null);
+    }
   }
 ));
 
+// Serialize and deserialize user for sessions
 passport.serializeUser((user, done) => {
   done(null, user);
 });
@@ -51,88 +104,78 @@ passport.deserializeUser((user, done) => {
   done(null, user);
 });
 
-// Auth routes
-app.get('/auth/github',
-  passport.authenticate('github', { scope: ['repo'] })
-);
+// Verify JWT token middleware
+const authenticateJWT = (req, res, next) => {
+  const authHeader = req.headers.authorization;
 
-app.get('/auth/github/callback',
-  passport.authenticate('github', { failureRedirect: '/login' }),
-  function(req, res) {
-    // Ensure user is properly authenticated before redirect
-    if (req.user) {
-      res.redirect('https://git-viz-eight.vercel.app/home');
-    } else {
-      res.redirect('https://git-viz-eight.vercel.app/login');
+  if (!authHeader) {
+    return res.status(401).json({ error: 'Authorization header required' });
+  }
+
+  const token = authHeader.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({ error: 'Bearer token required' });
+  }
+
+  jwt.verify(token, process.env.JWT_SECRET || 'git-viz-jwt-secret', (err, user) => {
+    if (err) {
+      console.error('JWT verification error:', err.message);
+      return res.status(403).json({ error: 'Invalid or expired token' });
     }
-  }
-);
 
-// API routes
-app.get('/api/user', (req, res) => {
-  if (req.user) {
-    res.json(req.user);
-  } else {
-    res.status(401).json({ error: 'Not authenticated' });
-  }
+    req.user = user;
+    next();
+  });
+};
+
+// Import routes
+const authRoutes = require('./routes/auth');
+const repositoryRoutes = require('./routes/repositories');
+const visualizationRoutes = require('./routes/visualizations');
+
+// Use routes - Fixed by correctly using the router objects as middleware
+app.use('/api/auth', authRoutes);
+app.use('/api/repositories', authenticateJWT, repositoryRoutes);
+app.use('/api/visualizations', authenticateJWT, visualizationRoutes);
+
+// Pre-flight options for CORS
+app.options('*', cors());
+
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-app.get('/api/repos', async (req, res) => {
-  if (!req.user) {
-    return res.status(401).json({ error: 'Not authenticated' });
-  }
-
-  try {
-    const response = await fetch('https://api.github.com/user/repos', {
-      headers: {
-        Authorization: `Bearer ${req.user.accessToken}`,
-      },
-    });
-    const repos = await response.json();
-    res.json(repos);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch repositories' });
-  }
+// Debug route to check environment variables
+app.get('/api/debug/env', (req, res) => {
+  res.json({
+    nodeEnv: process.env.NODE_ENV,
+    clientUrl: process.env.CLIENT_URL,
+    githubCallbackUrl: process.env.GITHUB_CALLBACK_URL,
+    allowedOrigins
+  });
 });
 
-app.get('/api/repos/:owner/:repo/branches', async (req, res) => {
-  if (!req.user) {
-    return res.status(401).json({ error: 'Not authenticated' });
+// Only handle API routes - no static file serving for API server
+app.get('*', (req, res) => {
+  if (req.path.startsWith('/api')) {
+    return res.status(404).json({ error: 'API endpoint not found' });
   }
-
-  try {
-    const { owner, repo } = req.params;
-    const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/branches`, {
-      headers: {
-        Authorization: `Bearer ${req.user.accessToken}`,
-      },
-    });
-    const branches = await response.json();
-    res.json(branches);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch branches' });
-  }
+  // Redirect non-API requests to frontend
+  res.redirect(process.env.CLIENT_URL || 'https://git-viz-eight.vercel.app');
 });
 
-app.get('/api/repos/:owner/:repo/pulls', async (req, res) => {
-  if (!req.user) {
-    return res.status(401).json({ error: 'Not authenticated' });
-  }
-
-  try {
-    const { owner, repo } = req.params;
-    const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/pulls?state=all`, {
-      headers: {
-        Authorization: `Bearer ${req.user.accessToken}`,
-      },
-    });
-    const pulls = await response.json();
-    res.json(pulls);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch pull requests' });
-  }
+// Global error handler
+app.use((err, req, res, next) => {
+  console.error('Server error:', err.stack);
+  res.status(500).json({ error: 'Server error occurred', message: err.message });
 });
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+  console.log(`NODE_ENV: ${process.env.NODE_ENV}`);
+  console.log(`CLIENT_URL: ${process.env.CLIENT_URL}`);
 });
+
+module.exports = app;

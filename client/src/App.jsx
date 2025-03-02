@@ -1,56 +1,65 @@
-// import React from 'react';
-// import { Provider } from 'react-redux';
-// import { store } from './store/store';
-// import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-// import Navbar from './components/Navbar';
-// import GitHubAuth from './components/GitHubAuth';
-// import Home from './pages/Home';
-
-// const App = () => {
-//   return (
-//     <Provider store={store}>
-//       <Router>
-//         <div className="flex flex-col h-screen">
-//           <Navbar />
-//           <Routes>
-//             <Route path="/" element={<GitHubAuth />} />
-//             <Route path="/home" element={<Home />} />
-//           </Routes>
-//         </div>
-//       </Router>
-//     </Provider>
-//   );
-// };
-
-// export default App;
-
 // src/App.jsx
-import { BrowserRouter as Router, Routes, Route , Navigate } from 'react-router-dom';
+import React, { useMemo, useState } from 'react';
+import { BrowserRouter } from 'react-router-dom';
 import { Provider } from 'react-redux';
-import { store } from './store/store';
-import Login from './components/Login';
-import GithubBranchViewer from './components/GithubBranchViewer';
-import ProtectedRoute from './components/ProtectedRoute';
+import { 
+  ThemeProvider, 
+  CssBaseline, 
+  createTheme,
+  StyledEngineProvider
+} from '@mui/material';
+import { SnackbarProvider } from 'notistack';
+import { lightTheme, darkTheme } from './styles/theme';
+import store from './store';
+import Routes from './routes';
 
-function App() {
+const App = () => {
+  const [mode, setMode] = useState(() => {
+    // Check for saved theme preference or use system preference
+    const savedMode = localStorage.getItem('themeMode');
+    if (savedMode) {
+      return savedMode;
+    }
+    
+    // Check system preference
+    return window.matchMedia('(prefers-color-scheme: dark)').matches 
+      ? 'dark' 
+      : 'light';
+  });
+  
+  // Update theme based on mode
+  const theme = useMemo(() => {
+    const selectedTheme = mode === 'dark' ? darkTheme : lightTheme;
+    return createTheme(selectedTheme);
+  }, [mode]);
+  
+  const toggleColorMode = () => {
+    const newMode = mode === 'light' ? 'dark' : 'light';
+    setMode(newMode);
+    localStorage.setItem('themeMode', newMode);
+  };
+  
   return (
     <Provider store={store}>
-      <Router>
-        <Routes>
-          <Route path="/" element={<Navigate to="/login" replace />} />
-          <Route path="/login" element={<Login />} />
-          <Route
-            path="/home"
-            element={
-              <ProtectedRoute>
-                <GithubBranchViewer />
-              </ProtectedRoute>
-            }
-          />
-        </Routes>
-      </Router>
+      <StyledEngineProvider injectFirst>
+        <ThemeProvider theme={theme}>
+          <CssBaseline />
+          <SnackbarProvider 
+            maxSnack={3} 
+            autoHideDuration={3000}
+            anchorOrigin={{
+              vertical: 'bottom',
+              horizontal: 'right',
+            }}
+          >
+            <BrowserRouter>
+              <Routes toggleColorMode={toggleColorMode} />
+            </BrowserRouter>
+          </SnackbarProvider>
+        </ThemeProvider>
+      </StyledEngineProvider>
     </Provider>
   );
-}
+};
 
 export default App;
