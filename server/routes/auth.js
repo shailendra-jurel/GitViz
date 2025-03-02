@@ -10,7 +10,12 @@ router.get('/github', passport.authenticate('github', { scope: ['user', 'repo'] 
 
 // GitHub OAuth callback route
 router.get('/github/callback', 
-  passport.authenticate('github', { 
+  (req, res, next) => {
+    console.log('GitHub callback received at:', req.originalUrl);
+    console.log('Expected callback URL:', process.env.GITHUB_CALLBACK_URL);
+    next();
+  },
+  passport.authenticate('github', {
     failureRedirect: `${process.env.CLIENT_URL || 'http://localhost:5173'}/login?error=auth_failed`,
     session: false // This ensures we don't create a session
   }),
