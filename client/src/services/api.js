@@ -1,7 +1,12 @@
 // src/services/api.js
 import axios from 'axios';
 
+// Get API URL from environment or use fallback
+const API_URL = import.meta.env.VITE_API_URL || 'https://gitviz.onrender.com/api';
+console.log('API URL being used:', API_URL);
+
 const api = axios.create({
+  baseURL: API_URL,
   timeout: 30000, // 30 seconds timeout
   headers: {
     'Content-Type': 'application/json',
@@ -18,6 +23,7 @@ api.interceptors.request.use(
         config.headers.Authorization = `Bearer ${token}`;
       }
     }
+    console.log('API Request:', config.url);
     return config;
   },
   (error) => Promise.reject(error)
@@ -27,6 +33,7 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    console.error('API Error:', error.response?.status, error.response?.data || error.message);
     // Handle authentication errors but don't redirect for API calls to auth endpoints
     if (error.response && error.response.status === 401 && !error.config.url.includes('/auth/')) {
       localStorage.removeItem('token');
@@ -36,4 +43,5 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
 export default api;

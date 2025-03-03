@@ -2,37 +2,25 @@ import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig, loadEnv } from 'vite';
 
-// https://vitejs.dev/config/
 export default defineConfig(({ command, mode }) => {
-  // Load env file based on `mode` in the current working directory.
   const env = loadEnv(mode, process.cwd(), '')
   
   console.log('Vite config - Mode:', mode);
-  console.log('Vite config - Backend URL:', env.REACT_APP_API_URL || 'https://gitviz.onrender.com');
+  console.log('Vite config - Backend URL:', env.VITE_API_URL || 'https://gitviz.onrender.com/api');
   
-  const backendUrl = env.REACT_APP_API_URL || 'https://gitviz.onrender.com';
+  // Hardcode for production, use env var for development
+  const backendUrl = mode === 'production' 
+    ? 'https://gitviz.onrender.com/api'
+    : (env.VITE_API_URL || 'http://localhost:5000/api');
   
   return {
     plugins: [tailwindcss(), react()],
     
-    // Define environment variables to expose to the client
     define: {
-      'process.env.MODE': JSON.stringify(mode),
-      'process.env.BACKEND_URL': JSON.stringify(backendUrl)
+      // Use import.meta.env approach for environment variables
+      'import.meta.env.VITE_API_URL': JSON.stringify(backendUrl)
     },
     
-    server: {
-      proxy: {
-        '/api': {
-          target: backendUrl,
-          changeOrigin: true,
-          secure: false,
-          rewrite: (path) => path
-        },
-      },
-    },
-    
-    // For better error messages in development
     build: {
       sourcemap: mode !== 'production'
     }

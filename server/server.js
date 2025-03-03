@@ -17,29 +17,25 @@ const PORT = process.env.PORT || 5000;
 const allowedOrigins = [
   'https://git-viz-eight.vercel.app',
   'https://git-viz-eight.vercel.app/',
+  'https://git-viz.vercel.app',
+  'https://gitviz.onrender.com',
   process.env.CLIENT_URL,
   'http://localhost:5173',
-  'http://localhost:3000',
-  'https://gitviz.onrender.com'
+  'http://localhost:3000'
 ];
 
 // Middleware
 app.use(cors({
   origin: function(origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
+    // Allow requests with no origin (like mobile apps, postman or curl requests)
     if (!origin) return callback(null, true);
     
-    // Check if the origin is allowed or if it's a subdomain of an allowed domain
-    const isAllowed = allowedOrigins.some(allowedOrigin => {
-      return origin === allowedOrigin || origin.endsWith(`.${allowedOrigin.replace(/^https?:\/\//, '')}`);
-    });
-    
-    if (!isAllowed) {
-      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
       console.warn(`CORS blocked for origin: ${origin}`);
-      return callback(new Error(msg), false);
+      callback(null, true); // In production, allow it anyway to debug
     }
-    return callback(null, true);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -72,7 +68,7 @@ console.log('Using GitHub callback URL:', callbackURL);
 passport.use(new GitHubStrategy({
   clientID: process.env.GITHUB_CLIENT_ID,
   clientSecret: process.env.GITHUB_CLIENT_SECRET,
-  callbackURL: "https://gitviz.onrender.com/api/auth/github/callback", // Hard-coded
+  callbackURL: process.env.GITHUB_CALLBACK_URL || 'https://gitviz.onrender.com/api/auth/github/callback',
   scope: ['user', 'repo']
 },
 async (accessToken, refreshToken, profile, done) => {

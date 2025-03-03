@@ -1,22 +1,24 @@
 // src/services/authService.js
 import api from './api';
 
-const API_URL = import.meta.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+// Get the base URL from the API configuration
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://gitviz.onrender.com/api';
 
 const authService = {
   // Redirect to GitHub OAuth page
   loginWithGithub: () => {
-    window.location.href = `${API_URL}/auth/github`;
+    console.log('Redirecting to GitHub OAuth:', `${API_BASE_URL}/auth/github`);
+    window.location.href = `${API_BASE_URL}/auth/github`;
   },
   
   // Handle the callback after GitHub OAuth
   handleAuthCallback: async (code) => {
-    const response = await api.post(`${API_URL}/auth/callback`, { code });
+    const response = await api.post(`/auth/callback`, { code });
     return response.data;
   },
   
   // Get user profile
-  getUserProfile: async (token) => {
+  getUserProfile: async () => {
     // Check if we already have a user in localStorage to avoid unnecessary API calls
     const cachedUser = localStorage.getItem('user');
     if (cachedUser) {
@@ -28,11 +30,7 @@ const authService = {
       }
     }
 
-    const response = await api.get(`${API_URL}/auth/user`, {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
-    });
+    const response = await api.get(`/auth/user`);
     
     // Cache the user data
     localStorage.setItem('user', JSON.stringify(response.data));
@@ -40,28 +38,17 @@ const authService = {
   },
   
   // Verify token
-  verifyToken: async (token) => {
-    const response = await api.get(`${API_URL}/auth/verify`, {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
-    });
+  verifyToken: async () => {
+    const response = await api.get(`/auth/verify`);
     return response.data;
   },
   
   // Logout
   logout: async () => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      try {
-        await api.post(`${API_URL}/auth/logout`, {}, {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        });
-      } catch (error) {
-        console.error('Logout error:', error);
-      }
+    try {
+      await api.post(`/auth/logout`, {});
+    } catch (error) {
+      console.error('Logout error:', error);
     }
     localStorage.removeItem('token');
     localStorage.removeItem('user');
