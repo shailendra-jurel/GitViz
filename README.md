@@ -51,7 +51,7 @@ GitHub account
 GitHub OAuth application credentials
 
 Installation
-1. Clone the repository  :- git clone https://github.com/yourusername/gitviz.git
+1. Clone the repository  :- git clone https://github.com/shailendra-jurel/gitviz.git
 cd gitviz
 2. Install backend dependencies
 cd server
