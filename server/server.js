@@ -70,12 +70,12 @@ console.log('Using GitHub callback URL:', callbackURL);
 
 // Passport GitHub strategy
 passport.use(new GitHubStrategy({
-    clientID: process.env.GITHUB_CLIENT_ID,
-    clientSecret: process.env.GITHUB_CLIENT_SECRET,
-    callbackURL: callbackURL,
-    scope: ['user', 'repo']
-  },
-  async (accessToken, refreshToken, profile, done) => {
+  clientID: process.env.GITHUB_CLIENT_ID,
+  clientSecret: process.env.GITHUB_CLIENT_SECRET,
+  callbackURL: "https://gitviz.onrender.com/api/auth/github/callback", // Hard-coded
+  scope: ['user', 'repo']
+},
+async (accessToken, refreshToken, profile, done) => {
     try {
       console.log('GitHub authentication successful for user:', profile.username);
       // Store GitHub access token with the user profile using consistent naming
